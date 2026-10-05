@@ -1,11 +1,23 @@
 {
   "server": "http://192.168.1.151:8080",
-  "rom_source": { "mode": "share", "share_root": "Z:\\" },
+  "rom_source": {
+    "mode": "share",
+    "share_root": "Z:\\",
+    "cache_dir": "C:\\romm\\cache"
+  },
   "platforms": {
     "wii": {
       "action": "emulator",
       "command": "C:\\Emuladores\\Dolphin\\Dolphin.exe",
       "args": "-b -e \"{rom_path}\""
+    },
+    "ps3": {
+      "action": "playnite",
+      "playnite_id": "POR-DEFINIR"
+    },
+    "3ds": {
+      "action": "script",
+      "script": "C:\\romm\\scripts\\lanzar_3ds.ps1"
     }
   }
 }
