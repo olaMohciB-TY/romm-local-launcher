@@ -1,0 +1,11 @@
+{
+  "server": "http://192.168.1.151:8080",
+  "rom_source": { "mode": "share", "share_root": "Z:\\" },
+  "platforms": {
+    "wii": {
+      "action": "emulator",
+      "command": "C:\\Emuladores\\Dolphin\\Dolphin.exe",
+      "args": "-b -e \"{rom_path}\""
+    }
+  }
+}

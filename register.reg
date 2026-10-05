@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\romm]
+@="URL:RomM"
+"URL Protocol"=""
+
+[HKEY_CURRENT_USER\Software\Classes\romm\shell\open\command]
+@="powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:\\romm\\romm-local-launcher\\handler.ps1\" \"%1\""
