@@ -3,7 +3,8 @@
 // @namespace    romm-local-launcher
 // @version      0.1
 // @description  Adds a floating "Play Locally" button that opens a romm:// link
-// @match        http://192.168.1.151:8080/*
+// @match        http://romm.casa:8085/*
+// @match        http://192.168.1.151:8085/*
 // @grant        none
 // ==/UserScript==
 

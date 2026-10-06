@@ -12,7 +12,9 @@
     "wii": {
       "action": "emulator",
       "command": "{emulator_path}",
-      "args": "-b -e \"{rom_path}\""
+      "args": "-b -e \"{rom_path}\"",
+      "extract_zip": true,
+      "rom_extensions": [".wbfs", ".rvz", ".iso", ".wia", ".gcz", ".ciso"]
     }
   }
 }

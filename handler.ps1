@@ -7,6 +7,12 @@ $log  = Join-Path $base 'handler.log'
 
 function Log($m) { "$(Get-Date -Format s)  $m" | Add-Content -Path $log -Encoding UTF8 }
 
+function Get-RomJson($server, $auth, $romId) {
+    $resp = Invoke-WebRequest -UseBasicParsing -Uri "$server/api/roms/$romId" -Headers @{ Authorization = $auth }
+    $texto = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+    return ($texto | ConvertFrom-Json)
+}
+
 function Get-RomPath($cfg, $server, $auth, $romId, $plataforma, $archivo) {
     $modo = $cfg.rom_source.mode
     if ($modo -eq 'share') {
@@ -22,13 +28,41 @@ function Get-RomPath($cfg, $server, $auth, $romId, $plataforma, $archivo) {
             $nombre = [System.Uri]::EscapeDataString($archivo)
             $urlDescarga = "$server/api/roms/$romId/content/$nombre"
             Log "Descargando: $urlDescarga"
-            Invoke-WebRequest -Uri $urlDescarga -Headers @{ Authorization = $auth } -OutFile $ruta
+            Invoke-WebRequest -UseBasicParsing -Uri $urlDescarga -Headers @{ Authorization = $auth } -OutFile $ruta
         } else {
             Log "Ya estaba en cache: $ruta"
         }
         return $ruta
     }
     throw "Modo '$modo' no reconocido"
+}
+
+function Find-RomFile($carpeta, $extensiones) {
+    if (-not (Test-Path -LiteralPath $carpeta)) { return $null }
+    return Get-ChildItem -LiteralPath $carpeta -Recurse -File |
+        Where-Object { $extensiones -contains $_.Extension.ToLower() } |
+        Select-Object -First 1
+}
+
+function Expand-IfZip($ruta, $p, $cfg, $romId, $plataforma) {
+    $esZip = ([System.IO.Path]::GetExtension($ruta).ToLower() -eq '.zip')
+    if (-not $esZip -or -not $p.extract_zip) { return $ruta }
+
+    $exts = @($p.rom_extensions | ForEach-Object { $_.ToLower() })
+    $dest = Join-Path (Join-Path (Join-Path $cfg.rom_source.cache_dir 'extraidos') $plataforma) $romId
+
+    $found = Find-RomFile $dest $exts
+    if (-not $found) {
+        if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
+        Log "Extrayendo $ruta en $dest (puede tardar)"
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($ruta, $dest)
+        $found = Find-RomFile $dest $exts
+    } else {
+        Log "Ya estaba extraido: $($found.FullName)"
+    }
+    if (-not $found) { throw "El ZIP no contiene ninguno de: $($exts -join ', ')" }
+    return $found.FullName
 }
 
 try {
@@ -46,9 +80,14 @@ try {
     $server = $cfg.server.TrimEnd('/')
     if ($query['server']) { $server = $query['server'].TrimEnd('/') }
 
+    $permitidos = @($cfg.allowed_servers)
+    if ($permitidos.Count -gt 0 -and ($permitidos -notcontains $server)) {
+        throw "Servidor no permitido: $server"
+    }
+
     $cred = "$($env:ROMM_USER):$($env:ROMM_PASS)"
     $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cred))
-    $rom  = Invoke-RestMethod -Uri "$server/api/roms/$romId" -Headers @{ Authorization = $auth }
+    $rom  = Get-RomJson $server $auth $romId
 
     $plataforma = $rom.platform_fs_slug
     $archivo    = $rom.fs_name
@@ -60,6 +99,8 @@ try {
     switch ($p.action) {
         'emulator' {
             $romPath = Get-RomPath $cfg $server $auth $romId $plataforma $archivo
+            $romPath = Expand-IfZip $romPath $p $cfg $romId $plataforma
+            Log "Ruta final de la ROM: $romPath"
             $argumentos = $p.args.Replace('{rom_path}', $romPath)
             Log "Lanzando: $($p.command) $argumentos"
             Start-Process -FilePath $p.command -ArgumentList $argumentos -Wait
